@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Orbiting Satellite</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #controls label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        #controls input[type="text"], #controls input[type="range"] {
+            margin-right: 10px;
+        }
+        #controls button {
+            margin-top: 10px;
+        }
+        .toggle-switch {
+            display: inline-block;
+            position: relative;
+            width: 40px;
+            height: 20px;
+            margin-left: 10px;
+        }
+        .toggle-switch input[type="checkbox"] {
+            display: none;
+        }
+        .toggle-switch label {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #ccc;
+            border-radius: 10px;
+            cursor: pointer;
+            position: absolute;
+        }
+        .toggle-switch input[type="checkbox"]:checked + label {
+            background: #4CAF50;
+        }
+        .toggle-switch label:after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: 0.2s;
+        }
+        .toggle-switch input[type="checkbox"]:checked + label:after {
+            left: 22px;
+        }
+        #distance-display {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            border-radius: 5px;
+        }
+        #chart-container {
+            position: absolute;
+            bottom: 40px;
+            left: 10px;
+            width: 300px;
+            height: 200px;
+            background: white;
+            border: 1px solid black;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <h3>Earth Toggle</h3>
+        <label>Show Earth: <span class="toggle-switch"><input type="checkbox" id="earthToggle" checked><label for="earthToggle"></label></span></label>
+        
+        <h3>Satellite 1 Controls</h3>
+        <label>Altitude (km): <input type="text" id="alt1-text" value="400" size="5"> <input type="range" id="alt1" min="200" max="2000" value="400" step="10"><span id="alt1-val">400</span></label>
+        <label>Inclination (deg): <input type="text" id="incl1-text" value="45" size="5"> <input type="range" id="incl1" min="0" max="90" value="45" step="1"><span id="incl1-val">45</span></label>
+        <label>Eccentricity: <input type="range" id="ecc1" min="0" max="0.5" value="0" step="0.01"><span id="ecc1-val">0.00</span></label>
+        
+        <h3>Satellite 2 Controls</h3>
+        <label>Altitude (km): <input type="text" id="alt2-text" value="500" size="5"> <input type="range" id="alt2" min="200" max="2000" value="500" step="10"><span id="alt2-val">500</span></label>
+        <label>Inclination (deg): <input type="text" id="incl2-text" value="60" size="5"> <input type="range" id="incl2" min="0" max="90" value="60" step="1"><span id="incl2-val">60</span></label>
+        <label>Eccentricity: <input type="range" id="ecc2" min="0" max="0.5" value="0" step="0.01"><span id="ecc2-val">0.00</span></label>
+        
+        <button id="apply">Apply Changes</button>
+        <button id="snap-sat1">Snap to Sat1 Plane (2D View)</button>
+        <button id="snap-sat2">Snap to Sat2 Plane (2D View)</button>
+        <button id="center-sat1">Center on Sat1</button>
+        <button id="center-sat2">Center on Sat2</button>
+        <button id="center-earth">Center on Earth</button>
+        <button id="reset-view">Reset View</button>
+    </div>
+    <div id="distance-display">Distance between Sat1 and Sat2: 0 km</div>
+    <div id="chart-container">
+        <canvas id="distanceChart"></canvas>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        // Create scene
+        var scene = new THREE.Scene();
+
+        // Create camera
+        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        // Create renderer
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xffffff, 1); // White background
+        document.body.appendChild(renderer.domElement);
+
+        // Add orbit controls for interaction (pan, zoom, rotate)
+        var controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+
+        // Add ambient light for subtle illumination
+        var ambientLight = new THREE.AmbientLight(0x333333, 0.2); // Dim ambient light
+        scene.add(ambientLight);
+
+        // Sun object (yellow sphere, not to size)
+        var sunGeometry = new THREE.SphereGeometry(3, 32, 32);
+        var sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        var sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        sun.position.set(0, 0, 0);
+        scene.add(sun);
+
+        // Light source from the sun (PointLight with no decay for constant illumination)
+        var sunLight = new THREE.PointLight(0xffffff, 5, 0, 0); // High intensity, infinite distance, no decay
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        // Earth as a blue dot
+        var earthGeometry = new THREE.SphereGeometry(5, 32, 32);
+        var earthMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff, shininess: 10 }); // Blue color
+        var earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        earth.position.set(50, 0, 0); // Initial position orbiting sun
+        scene.add(earth);
+
+        // Small blue dot at Earth's center (always visible)
+        var centerDotGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+        var centerDotMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+        var centerDot = new THREE.Mesh(centerDotGeometry, centerDotMaterial);
+        scene.add(centerDot);
+
+        // Satellite 1 (red sphere model, no lighting)
+        var satelliteGeometry1 = new THREE.SphereGeometry(0.2, 16, 16);
+        var satelliteMaterial1 = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red color, no lighting
+        var satellite1 = new THREE.Mesh(satelliteGeometry1, satelliteMaterial1);
+        scene.add(satellite1);
+
+        // Satellite 2 (green sphere model, no lighting)
+        var satelliteGeometry2 = new THREE.SphereGeometry(0.2, 16, 16);
+        var satelliteMaterial2 = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green color, no lighting
+        var satellite2 = new THREE.Mesh(satelliteGeometry2, satelliteMaterial2);
+        scene.add(satellite2);
+
+        // Trace group (follows Earth's position but not rotation)
+        var traceGroup = new THREE.Group();
+        scene.add(traceGroup);
+
+        // Orbit traces (as children of traceGroup)
+        let positions1 = [];
+        let positions2 = [];
+        let maxPoints = 1656; // Approximate for 3 orbits (552 points per orbit for dt=10s, T~5520s)
+        var traceMaterial1 = new THREE.LineBasicMaterial({ color: 0xff0000 });
+        var traceGeometry1 = new THREE.BufferGeometry();
+        var trace1 = new THREE.Line(traceGeometry1, traceMaterial1);
+        traceGroup.add(trace1);
+        var traceMaterial2 = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+        var traceGeometry2 = new THREE.BufferGeometry();
+        var trace2 = new THREE.Line(traceGeometry2, traceMaterial2);
+        traceGroup.add(trace2);
+
+        // Background grid (in x-y plane, following Earth)
+        var grid = new THREE.GridHelper(50, 10, 0x000000, 0x000000);
+        grid.rotation.x = Math.PI / 2;
+        scene.add(grid);
+
+        // Constants for orbital mechanics (units in km, s)
+        const GM = 3.986004418e5; // km^3/s^2
+        const J2 = 1.08262668e-3;
+        const R_e = 6378.137; // km
+        const earthRadiusViz = 5;
+
+        // Function to initialize satellite state with eccentricity
+        function initSatState(altitude, inclination, eccentricity) {
+            const a_real = R_e + altitude;
+            const v_circular = Math.sqrt(GM / a_real);
+            const incl_rad = inclination * Math.PI / 180;
+            // Start at periapsis with eccentricity
+            const r_peri = a_real * (1 - eccentricity);
+            const v_peri = Math.sqrt(GM * (2 / r_peri - 1 / a_real));
+            return {
+                pos: new THREE.Vector3(r_peri, 0, 0),
+                vel: new THREE.Vector3(0, v_peri * Math.cos(incl_rad), v_peri * Math.sin(incl_rad))
+            };
+        }
+
+        // Initial states
+        let satState1 = initSatState(400, 45, 0);
+        let satState2 = initSatState(500, 60, 0);
+
+        // Function to compute acceleration (2-body + J2)
+        function getAcceleration(pos) {
+            const r = pos.length();
+            const a2b = pos.clone().multiplyScalar(-GM / (r * r * r));
+
+            const factor = - (3 / 2) * J2 * (GM / (r * r)) * Math.pow(R_e / r, 2);
+            const z2_r2 = (pos.z * pos.z) / (r * r);
+            const ax_j2 = factor * (pos.x / r) * (5 * z2_r2 - 1);
+            const ay_j2 = factor * (pos.y / r) * (5 * z2_r2 - 1);
+            const az_j2 = factor * (pos.z / r) * (5 * z2_r2 - 3);
+            const a_j2 = new THREE.Vector3(ax_j2, ay_j2, az_j2);
+
+            return a2b.add(a_j2);
+        }
+
+        // RK4 integrator (adapted for vectors)
+        function rk4(pos, vel, dt) {
+            const acc = (p, v, t) => getAcceleration(p); // Ignore v and t for this model
+
+            const vel1 = vel.clone();
+            const acc1 = acc(pos, vel, 0);
+
+            const pos2 = pos.clone().add(vel1.clone().multiplyScalar(dt / 2));
+            const vel2 = vel.clone().add(acc1.clone().multiplyScalar(dt / 2));
+            const acc2 = acc(pos2, vel2, dt / 2);
+
+            const pos3 = pos.clone().add(vel2.clone().multiplyScalar(dt / 2));
+            const vel3 = vel.clone().add(acc2.clone().multiplyScalar(dt / 2));
+            const acc3 = acc(pos3, vel3, dt / 2);
+
+            const pos4 = pos.clone().add(vel3.clone().multiplyScalar(dt));
+            const vel4 = vel.clone().add(acc3.clone().multiplyScalar(dt));
+            const acc4 = acc(pos4, vel4, dt);
+
+            const posf = pos.clone().add(
+                vel1.clone().add(vel2.clone().multiplyScalar(2)).add(vel3.clone().multiplyScalar(2)).add(vel4)
+                .multiplyScalar(dt / 6)
+            );
+
+            const velf = vel.clone().add(
+                acc1.clone().add(acc2.clone().multiplyScalar(2)).add(acc3.clone().multiplyScalar(2)).add(acc4)
+                .multiplyScalar(dt / 6)
+            );
+
+            return { pos: posf, vel: velf };
+        }
+
+        // Orbit parameters for Earth around sun (simple)
+        var earthOrbitRadius = 50;
+        var earthTheta = 0;
+        var dEarthTheta = 2 * Math.PI / 5000; // Slow orbit speed
+
+        // Set initial camera and controls to center on Earth
+        camera.position.set(50, 0, 15); // Position above the ecliptic plane
+        controls.target.copy(earth.position);
+        var previousTarget = new THREE.Vector3().copy(earth.position);
+
+        // Time step for integration (s per frame, adjust for speed/accuracy)
+        const dt = 10; // Seconds per frame (tune to control simulation speed)
+
+        // Current center
+        let currentCenter = 'earth';
+
+        // Simulated time
+        let simulatedTime = 0;
+
+        // Chart setup
+        const ctx = document.getElementById('distanceChart').getContext('2d');
+        const distanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // Time
+                datasets: [{
+                    label: 'Distance (km)',
+                    data: [],
+                    borderColor: 'blue',
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Time (s)' } },
+                    y: { title: { display: true, text: 'Distance (km)' } }
+                }
+            }
+        });
+        let chartData = { time: [], dist: [] };
+
+        // Chart update interval (every 20 frames, ~200s)
+        const chartUpdateInterval = 20;
+        let frameCount = 0;
+
+        // Update slider and text input displays
+        function updateDisplays() {
+            document.getElementById('alt1-val').textContent = document.getElementById('alt1').value;
+            document.getElementById('incl1-val').textContent = document.getElementById('incl1').value;
+            document.getElementById('ecc1-val').textContent = parseFloat(document.getElementById('ecc1').value).toFixed(2);
+            document.getElementById('alt2-val').textContent = document.getElementById('alt2').value;
+            document.getElementById('incl2-val').textContent = document.getElementById('incl2').value;
+            document.getElementById('ecc2-val').textContent = parseFloat(document.getElementById('ecc2').value).toFixed(2);
+            
+            // Sync text inputs with sliders
+            document.getElementById('alt1-text').value = document.getElementById('alt1').value;
+            document.getElementById('incl1-text').value = document.getElementById('incl1').value;
+            document.getElementById('alt2-text').value = document.getElementById('alt2').value;
+            document.getElementById('incl2-text').value = document.getElementById('incl2').value;
+        }
+        updateDisplays();
+
+        // Event listeners for sliders and text inputs
+        ['alt1', 'incl1', 'alt2', 'incl2'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                document.getElementById(id + '-text').value = document.getElementById(id).value;
+                updateDisplays();
+            });
+            document.getElementById(id + '-text').addEventListener('change', (e) => {
+                let value = parseFloat(e.target.value);
+                const min = parseFloat(document.getElementById(id).min);
+                const max = parseFloat(document.getElementById(id).max);
+                value = Math.max(min, Math.min(max, value));
+                document.getElementById(id).value = value;
+                updateDisplays();
+            });
+        });
+        ['ecc1', 'ecc2'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updateDisplays);
+        });
+
+        // Earth toggle
+        document.getElementById('earthToggle').addEventListener('change', (e) => {
+            earth.visible = e.target.checked;
+        });
+
+        // Apply button to reset satellite states
+        document.getElementById('apply').addEventListener('click', () => {
+            const alt1 = parseFloat(document.getElementById('alt1').value);
+            const incl1 = parseFloat(document.getElementById('incl1').value);
+            const ecc1 = parseFloat(document.getElementById('ecc1').value);
+            const alt2 = parseFloat(document.getElementById('alt2').value);
+            const incl2 = parseFloat(document.getElementById('incl2').value);
+            const ecc2 = parseFloat(document.getElementById('ecc2').value);
+            
+            satState1 = initSatState(alt1, incl1, ecc1);
+            satState2 = initSatState(alt2, incl2, ecc2);
+            // Reset traces and chart when applying changes
+            positions1 = [];
+            positions2 = [];
+            chartData.time = [];
+            chartData.dist = [];
+            distanceChart.data.labels = [];
+            distanceChart.data.datasets[0].data = [];
+            distanceChart.update();
+            simulatedTime = 0;
+            frameCount = 0;
+            // Calculate maxPoints for last 3 orbits
+            const a1 = R_e + alt1;
+            const period1 = 2 * Math.PI * Math.sqrt(a1 ** 3 / GM);
+            const a2 = R_e + alt2;
+            const period2 = 2 * Math.PI * Math.sqrt(a2 ** 3 / GM);
+            maxPoints = Math.round(3 * Math.max(period1, period2) / dt);
+        });
+
+        // Snap to Sat1 plane
+        document.getElementById('snap-sat1').addEventListener('click', () => {
+            currentCenter = 'earth';
+            const normal = satState1.pos.clone().cross(satState1.vel).normalize().multiplyScalar(20);
+            camera.position.copy(earth.position.clone().add(normal));
+            camera.lookAt(earth.position);
+            controls.target.copy(earth.position);
+        });
+
+        // Snap to Sat2 plane
+        document.getElementById('snap-sat2').addEventListener('click', () => {
+            currentCenter = 'earth';
+            const normal = satState2.pos.clone().cross(satState2.vel).normalize().multiplyScalar(20);
+            camera.position.copy(earth.position.clone().add(normal));
+            camera.lookAt(earth.position);
+            controls.target.copy(earth.position);
+        });
+
+        // Center on Sat1
+        document.getElementById('center-sat1').addEventListener('click', () => {
+            currentCenter = 'sat1';
+            camera.position.copy(satellite1.position.clone().add(new THREE.Vector3(0, 0, 10)));
+            camera.lookAt(satellite1.position);
+            controls.target.copy(satellite1.position);
+            previousTarget.copy(satellite1.position);
+        });
+
+        // Center on Sat2
+        document.getElementById('center-sat2').addEventListener('click', () => {
+            currentCenter = 'sat2';
+            camera.position.copy(satellite2.position.clone().add(new THREE.Vector3(0, 0, 10)));
+            camera.lookAt(satellite2.position);
+            controls.target.copy(satellite2.position);
+            previousTarget.copy(satellite2.position);
+        });
+
+        // Center on Earth
+        document.getElementById('center-earth').addEventListener('click', () => {
+            currentCenter = 'earth';
+            camera.position.copy(earth.position.clone().add(new THREE.Vector3(0, 0, 15)));
+            camera.lookAt(earth.position);
+            controls.target.copy(earth.position);
+            previousTarget.copy(earth.position);
+        });
+
+        // Reset view
+        document.getElementById('reset-view').addEventListener('click', () => {
+            currentCenter = 'earth';
+            camera.position.copy(earth.position.clone().add(new THREE.Vector3(0, 0, 15)));
+            camera.lookAt(earth.position);
+            controls.target.copy(earth.position);
+            previousTarget.copy(earth.position);
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate Earth on its axis
+            earth.rotation.y += 0.001;
+
+            // Update Earth position (simple orbit around sun)
+            earthTheta += dEarthTheta;
+            earth.position.x = earthOrbitRadius * Math.cos(earthTheta);
+            earth.position.y = earthOrbitRadius * Math.sin(earthTheta);
+            earth.position.z = 0;
+
+            // Propagate satellite 1 using RK4 with 2-body + J2
+            satState1 = rk4(satState1.pos, satState1.vel, dt);
+
+            // Set satellite 1 visual position (relative to Earth, scaled)
+            const scale1 = earthRadiusViz / R_e;
+            const satPosViz1 = satState1.pos.clone().multiplyScalar(scale1);
+            satellite1.position.copy(earth.position.clone().add(satPosViz1));
+
+            // Propagate satellite 2 using RK4 with 2-body + J2
+            satState2 = rk4(satState2.pos, satState2.vel, dt);
+
+            // Set satellite 2 visual position (relative to Earth, scaled)
+            const scale2 = earthRadiusViz / R_e;
+            const satPosViz2 = satState2.pos.clone().multiplyScalar(scale2);
+            satellite2.position.copy(earth.position.clone().add(satPosViz2));
+
+            // Update distance display
+            const dist = satState1.pos.distanceTo(satState2.pos);
+            document.getElementById('distance-display').textContent = `Distance between Sat1 and Sat2: ${dist.toFixed(2)} km`;
+
+            // Update orbit traces (relative to Earth)
+            positions1.push(satPosViz1.clone());
+            if (positions1.length > maxPoints) positions1.shift();
+            traceGeometry1.setFromPoints(positions1);
+
+            positions2.push(satPosViz2.clone());
+            if (positions2.length > maxPoints) positions2.shift();
+            traceGeometry2.setFromPoints(positions2);
+
+            // Update traceGroup position
+            traceGroup.position.copy(earth.position);
+
+            // Update chart less frequently
+            frameCount++;
+            if (frameCount % chartUpdateInterval === 0) {
+                simulatedTime += dt * chartUpdateInterval;
+                chartData.time.push(simulatedTime);
+                chartData.dist.push(dist);
+                if (chartData.time.length > maxPoints / chartUpdateInterval) {
+                    chartData.time.shift();
+                    chartData.dist.shift();
+                }
+                distanceChart.data.labels = chartData.time;
+                distanceChart.data.datasets[0].data = chartData.dist;
+                distanceChart.update();
+            }
+
+            // Update center dot position
+            centerDot.position.copy(earth.position);
+
+            // Update grid position (follow Earth in x-y plane)
+            grid.position.x = earth.position.x;
+            grid.position.y = earth.position.y;
+            grid.position.z = 0;
+
+            // Update controls target and camera follow based on current center
+            let targetPos;
+            if (currentCenter === 'sat1') {
+                targetPos = satellite1.position;
+            } else if (currentCenter === 'sat2') {
+                targetPos = satellite2.position;
+            } else {
+                targetPos = earth.position;
+            }
+            controls.target.copy(targetPos);
+            var delta = new THREE.Vector3().copy(targetPos).sub(previousTarget);
+            camera.position.add(delta);
+            previousTarget.copy(targetPos);
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
