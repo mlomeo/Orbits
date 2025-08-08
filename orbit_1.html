@@ -73,11 +73,12 @@
             position: absolute;
             bottom: 40px;
             left: 10px;
-            width: 300px;
-            height: 200px;
+            width: 400px;
+            height: 250px;
             background: white;
-            border: 1px solid black;
-            border-radius: 5px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -290,17 +291,54 @@
             data: {
                 labels: [], // Time
                 datasets: [{
-                    label: 'Distance (km)',
+                    label: 'Distance between Sat1 and Sat2 (km)',
                     data: [],
-                    borderColor: 'blue',
-                    fill: false
+                    borderColor: '#1E90FF',
+                    backgroundColor: 'rgba(30, 144, 255, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.3
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            font: { size: 14 }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'nearest',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return `Distance: ${context.parsed.y.toFixed(2)} km`;
+                            }
+                        }
+                    }
+                },
                 scales: {
-                    x: { title: { display: true, text: 'Time (s)' } },
-                    y: { title: { display: true, text: 'Distance (km)' } }
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time (s)',
+                            font: { size: 14 }
+                        },
+                        grid: { display: false },
+                        ticks: { maxTicksLimit: 10 }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Distance (km)',
+                            font: { size: 14 }
+                        },
+                        grid: { color: '#e0e0e0' },
+                        suggestedMin: 0
+                    }
                 }
             }
         });
