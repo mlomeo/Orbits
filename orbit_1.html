@@ -88,8 +88,8 @@
         <label>Show Earth: <span class="toggle-switch"><input type="checkbox" id="earthToggle" checked><label for="earthToggle"></label></span></label>
         
         <h3>Satellite 1 Controls</h3>
-        <label>Altitude (km): <input type="text" id="alt1-text" value="400" size="5"> <input type="range" id="alt1" min="200" max="2000" value="400" step="10"><span id="alt1-val">400</span></label>
-        <label>Inclination (deg): <input type="text" id="incl1-text" value="45" size="5"> <input type="range" id="incl1" min="0" max="90" value="45" step="1"><span id="incl1-val">45</span></label>
+        <label>Altitude (km): <input type="text" id="alt1-text" value="500" size="5"> <input type="range" id="alt1" min="200" max="2000" value="500" step="10"><span id="alt1-val">400</span></label>
+        <label>Inclination (deg): <input type="text" id="incl1-text" value="60" size="5"> <input type="range" id="incl1" min="0" max="90" value="60" step="1"><span id="incl1-val">45</span></label>
         <label>Eccentricity: <input type="range" id="ecc1" min="0" max="0.5" value="0" step="0.01"><span id="ecc1-val">0.00</span></label>
         
         <h3>Satellite 2 Controls</h3>
@@ -161,13 +161,13 @@
         scene.add(centerDot);
 
         // Satellite 1 (red sphere model, no lighting)
-        var satelliteGeometry1 = new THREE.SphereGeometry(0.2, 16, 16);
+        var satelliteGeometry1 = new THREE.SphereGeometry(0.2, 6, 6);
         var satelliteMaterial1 = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red color, no lighting
         var satellite1 = new THREE.Mesh(satelliteGeometry1, satelliteMaterial1);
         scene.add(satellite1);
 
         // Satellite 2 (green sphere model, no lighting)
-        var satelliteGeometry2 = new THREE.SphereGeometry(0.2, 16, 16);
+        var satelliteGeometry2 = new THREE.SphereGeometry(0.2, 6, 6);
         var satelliteMaterial2 = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green color, no lighting
         var satellite2 = new THREE.Mesh(satelliteGeometry2, satelliteMaterial2);
         scene.add(satellite2);
@@ -215,7 +215,7 @@
         }
 
         // Initial states
-        let satState1 = initSatState(400, 45, 0);
+        let satState1 = initSatState(500, 60, 0);
         let satState2 = initSatState(500, 60, 0);
 
         // Function to compute acceleration (2-body + J2)
