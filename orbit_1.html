@@ -184,9 +184,22 @@
             border: 1px solid #e0e0e0;
             z-index: 10;
         }
-        #chart-container {
+        #poca-display {
             position: absolute;
             bottom: 40px;
+            left: 10px;
+            background: rgba(255,255,255,0.92);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 1em;
+            color: #1e90ff;
+            box-shadow: none;
+            border: 1px solid #e0e0e0;
+            z-index: 10;
+        }
+        #chart-container {
+            position: absolute;
+            bottom: 70px;
             left: 10px;
             width: 400px;
             height: 250px;
@@ -318,10 +331,17 @@
                     <button id="reset-view">Reset View</button>
                 </div>
             </div>
+            <div class="dropdown">
+                <button class="dropdown-toggle" id="preset-toggle">Presets ▼</button>
+                <div class="dropdown-content" id="preset-content">
+                    <button id="preset-inc-offset">Inc Offset</button>
+                </div>
+            </div>
             <button id="pause-btn">Pause</button>
         </div>
     </div>
     <div id="distance-display">Distance between Sat1 and Sat2: 0 km</div>
+    <div id="poca-display">POCA: 0 km</div>
     <div id="chart-container">
         <canvas id="distanceChart"></canvas>
     </div>
@@ -615,6 +635,9 @@
             satState1 = initSatState(alt1, incl1, ecc1, raan1, argp1);
             satState2 = initSatState(alt2, incl2, ecc2, raan2, argp2);
 
+            // Reset POCA calculation
+            poca = Infinity;
+
             // Reset traces and chart when applying changes
             positions1 = [];
             positions2 = [];
@@ -701,6 +724,29 @@
             return Math.ceil(maxTimeSpan / dt); // Convert time span to points
         }
 
+        let poca = Infinity; // Initialize POCA to a very large value
+
+        // Add this function before the updatePOCA function:
+        function getPOCAThreshold() {
+            const alt1 = parseFloat(document.getElementById('alt1-text').value);
+            const a1 = R_e + alt1;
+            const period1 = 2 * Math.PI * Math.sqrt(Math.pow(a1, 3) / GM);
+            const alt2 = parseFloat(document.getElementById('alt2-text').value);
+            const a2 = R_e + alt2;
+            const period2 = 2 * Math.PI * Math.sqrt(Math.pow(a2, 3) / GM);
+            return Math.max(period1, period2);
+        }
+
+        // Modify updatePOCA to start tracking after one orbital period:
+        function updatePOCA(distance) {
+            if (simulatedTime > getPOCAThreshold()) {
+                if (distance > 0 && distance < poca) {
+                    poca = distance;
+                    document.getElementById('poca-display').textContent = `POCA: ${poca.toFixed(2)} km`;
+                }
+            }
+        }
+
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
@@ -734,6 +780,9 @@
                 // Update distance display
                 const dist = satState1.pos.distanceTo(satState2.pos);
                 document.getElementById('distance-display').textContent = `Distance between Sat1 and Sat2: ${dist.toFixed(2)} km`;
+
+                // Update POCA
+                updatePOCA(dist);
 
                 // Update orbit traces (relative to Earth)
                 positions1.push(satPosViz1.clone());
@@ -834,6 +883,7 @@
         setupDropdown('sat1-toggle', 'sat1-content');
         setupDropdown('sat2-toggle', 'sat2-content');
         setupDropdown('views-toggle', 'views-content');
+        setupDropdown('preset-toggle', 'preset-content');
 
         // Earth toggle
         document.getElementById('earthToggle').addEventListener('change', function(e) {
@@ -845,6 +895,43 @@
             sun.visible = e.target.checked;
             sunLight.visible = e.target.checked;
         });
+
+        // Function to apply the "Inc Offset" preset
+        function applyIncOffsetPreset() {
+            // Set Sat1 initial conditions
+            document.getElementById('alt1-text').value = 500;
+            document.getElementById('incl1-text').value = 90;
+            document.getElementById('ecc1-text').value = 0;
+            document.getElementById('raan1-text').value = 0;
+            document.getElementById('argp1-text').value = 0;
+
+            // Set Sat2 initial conditions
+            document.getElementById('alt2-text').value = 500;
+            document.getElementById('incl2-text').value = 88;
+            document.getElementById('ecc2-text').value = 0;
+            document.getElementById('raan2-text').value = 0;
+            document.getElementById('argp2-text').value = 0;
+
+            // Trigger the Apply Changes button logic (which resets POCA)
+            document.getElementById('apply').click();
+
+            // Also ensure POCA is reset in case needed here:
+            poca = Infinity;
+
+            // Restart simulation
+            positions1 = [];
+            positions2 = [];
+            chartData.time = [];
+            chartData.dist = [];
+            distanceChart.data.labels = [];
+            distanceChart.data.datasets[0].data = [];
+            distanceChart.update();
+            simulatedTime = 0;
+            frameCount = 0;
+        }
+
+        // Event listener for "Inc Offset" preset
+        document.getElementById('preset-inc-offset').addEventListener('click', applyIncOffsetPreset);
     </script>
 </body>
 </html>
