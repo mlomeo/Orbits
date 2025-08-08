@@ -7,30 +7,139 @@
     <style>
         body { margin: 0; }
         canvas { display: block; }
-        #controls {
+        #controls-panel {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 10px;
-            border-radius: 5px;
+            z-index: 20;
+            width: 220px;
+            transition: width 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        #controls {
+            background: rgba(255,255,255,0.92);
+            padding: 10px 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 180px;
+            max-width: 220px;
+            transition: opacity 0.2s;
+            box-sizing: border-box;
+        }
+        #controls.minimized {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+        }
+        #minimize-btn {
+            align-self: flex-end;
+            background: #fff;
+            color: #1e90ff;
+            border: none;
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 1.1em;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 2px;
+            box-shadow: 0 1px 4px rgba(30,144,255,0.07);
+            outline: none;
+            transition: background 0.18s, color 0.18s;
+        }
+        #minimize-btn:hover {
+            background: #e0e0e0;
+            color: #1565c0;
+        }
+        #controls-panel.minimized {
+            width: 44px;
+        }
+        #controls-panel.minimized #controls {
+            display: none;
+        }
+        #controls-panel.minimized #minimize-btn {
+            align-self: flex-start;
+            margin-bottom: 0;
+            margin-top: 0;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 1.2em;
         }
         #controls label {
-            display: block;
-            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 7px;
+            font-size: 0.97em;
+            flex-wrap: wrap;
+            gap: 4px;
         }
-        #controls input[type="text"], #controls input[type="range"] {
-            margin-right: 10px;
+        #controls input[type="text"] {
+            width: 42px;
+            min-width: 0;
+            max-width: 54px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            background: #f7f9fb;
+            font-size: 0.97em;
+            margin-right: 4px;
+            box-sizing: border-box;
+        }
+        #controls input[type="range"] {
+            flex: 1 1 90px;
+            min-width: 90px;
+            max-width: 120px;
+            accent-color: #1e90ff;
+            margin-left: 4px;
+            margin-right: 4px;
+            height: 2px;
+            box-sizing: border-box;
+        }
+        #controls span {
+            min-width: 32px;
+            text-align: right;
+            font-size: 0.97em;
+            color: #1e90ff;
+            font-weight: 500;
+            margin-left: 2px;
         }
         #controls button {
-            margin-top: 10px;
+            margin-top: 0;
+            margin-bottom: 0;
+            margin-right: 0;
+            padding: 5px 0;
+            border: none;
+            border-radius: 5px;
+            background: #f7f9fb;
+            color: #1e90ff;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: none;
+            transition: background 0.18s, color 0.18s;
+            outline: none;
+            width: 100%;
+        }
+        #controls button:hover {
+            background: #e0e0e0;
+            color: #1565c0;
+        }
+        #controls .button-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 2px;
         }
         .toggle-switch {
             display: inline-block;
             position: relative;
-            width: 40px;
-            height: 20px;
-            margin-left: 10px;
+            width: 32px;
+            height: 16px;
+            margin-left: 6px;
         }
         .toggle-switch input[type="checkbox"] {
             display: none;
@@ -39,35 +148,41 @@
             display: block;
             width: 100%;
             height: 100%;
-            background: #ccc;
-            border-radius: 10px;
+            background: #e0e0e0;
+            border-radius: 8px;
             cursor: pointer;
             position: absolute;
         }
         .toggle-switch input[type="checkbox"]:checked + label {
-            background: #4CAF50;
+            background: #1e90ff;
         }
         .toggle-switch label:after {
             content: '';
             position: absolute;
-            width: 16px;
-            height: 16px;
+            width: 12px;
+            height: 12px;
             background: white;
             border-radius: 50%;
             top: 2px;
             left: 2px;
             transition: 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
         .toggle-switch input[type="checkbox"]:checked + label:after {
-            left: 22px;
+            left: 18px;
         }
         #distance-display {
             position: absolute;
             bottom: 10px;
             left: 10px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 5px;
+            background: rgba(255,255,255,0.92);
+            padding: 5px 10px;
             border-radius: 5px;
+            font-size: 1em;
+            color: #1e90ff;
+            box-shadow: none;
+            border: 1px solid #e0e0e0;
+            z-index: 10;
         }
         #chart-container {
             position: absolute;
@@ -75,36 +190,120 @@
             left: 10px;
             width: 400px;
             height: 250px;
-            background: white;
-            border: 1px solid #333;
+            background: #fff;
+            border: 1px solid #e0e0e0;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: none;
+            z-index: 10;
+        }
+        .dropdown {
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        .dropdown-toggle {
+            width: 100%;
+            background: #f7f9fb;
+            color: #1e90ff;
+            border: none;
+            border-radius: 5px;
+            padding: 6px 0;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.18s, color 0.18s;
+            outline: none;
+        }
+        .dropdown-toggle:hover {
+            background: #e0e0e0;
+            color: #1565c0;
+        }
+        .dropdown-content {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 4px;
+            margin-bottom: 4px;
+            padding-left: 4px;
+        }
+        .dropdown.open .dropdown-content {
+            display: flex;
+        }
+        @media (max-width: 600px) {
+            #controls-panel { left: 1vw; width: 98vw; }
+            #controls { min-width: 140px; padding: 6px; }
+            #chart-container { width: 98vw; left: 1vw; }
         }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <h3>Earth Toggle</h3>
-        <label>Show Earth: <span class="toggle-switch"><input type="checkbox" id="earthToggle" checked><label for="earthToggle"></label></span></label>
-        
-        <h3>Satellite 1 Controls</h3>
-        <label>Altitude (km): <input type="text" id="alt1-text" value="500" size="5"> <input type="range" id="alt1" min="200" max="2000" value="500" step="10"><span id="alt1-val">400</span></label>
-        <label>Inclination (deg): <input type="text" id="incl1-text" value="60" size="5"> <input type="range" id="incl1" min="0" max="90" value="60" step="1"><span id="incl1-val">45</span></label>
-        <label>Eccentricity: <input type="range" id="ecc1" min="0" max="0.5" value="0" step="0.01"><span id="ecc1-val">0.00</span></label>
-        
-        <h3>Satellite 2 Controls</h3>
-        <label>Altitude (km): <input type="text" id="alt2-text" value="500" size="5"> <input type="range" id="alt2" min="200" max="2000" value="500" step="10"><span id="alt2-val">500</span></label>
-        <label>Inclination (deg): <input type="text" id="incl2-text" value="60" size="5"> <input type="range" id="incl2" min="0" max="90" value="60" step="1"><span id="incl2-val">60</span></label>
-        <label>Eccentricity: <input type="range" id="ecc2" min="0" max="0.5" value="0" step="0.01"><span id="ecc2-val">0.00</span></label>
-        
-        <button id="apply">Apply Changes</button>
-        <button id="snap-sat1">Snap to Sat1 Plane (2D View)</button>
-        <button id="snap-sat2">Snap to Sat2 Plane (2D View)</button>
-        <button id="center-sat1">Center on Sat1</button>
-        <button id="center-sat2">Center on Sat2</button>
-        <button id="center-earth">Center on Earth</button>
-        <button id="reset-view">Reset View</button>
-        <button id="pause-btn">Pause</button>
+    <div id="controls-panel">
+        <button id="minimize-btn" title="Minimize/Expand Panel">☰</button>
+        <div id="controls">
+            <h3>Earth & Sun Toggle</h3>
+            <label>
+                Show Earth:
+                <span class="toggle-switch">
+                    <input type="checkbox" id="earthToggle" checked>
+                    <label for="earthToggle"></label>
+                </span>
+            </label>
+            <label>
+                Show Sun:
+                <span class="toggle-switch">
+                    <input type="checkbox" id="sunToggle" checked>
+                    <label for="sunToggle"></label>
+                </span>
+            </label>
+            
+            <div class="dropdown">
+                <button class="dropdown-toggle" id="sat1-toggle">Satellite 1 ▼</button>
+                <div class="dropdown-content" id="sat1-content">
+                    <label>
+                        Altitude (km):
+                        <input type="text" id="alt1-text" value="500" size="5">
+                    </label>
+                    <label>
+                        Inclination (deg):
+                        <input type="text" id="incl1-text" value="60" size="5">
+                    </label>
+                    <label>
+                        Eccentricity:
+                        <input type="text" id="ecc1-text" value="0" size="5">
+                    </label>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="dropdown-toggle" id="sat2-toggle">Satellite 2 ▼</button>
+                <div class="dropdown-content" id="sat2-content">
+                    <label>
+                        Altitude (km):
+                        <input type="text" id="alt2-text" value="500" size="5">
+                    </label>
+                    <label>
+                        Inclination (deg):
+                        <input type="text" id="incl2-text" value="60" size="5">
+                    </label>
+                    <label>
+                        Eccentricity:
+                        <input type="text" id="ecc2-text" value="0" size="5">
+                    </label>
+                </div>
+            </div>
+            <button id="apply">Apply Changes</button>
+            <div class="dropdown">
+                <button class="dropdown-toggle" id="views-toggle">Views ▼</button>
+                <div class="dropdown-content" id="views-content">
+                    <button id="snap-sat1">Snap to Sat1 Plane (2D View)</button>
+                    <button id="snap-sat2">Snap to Sat2 Plane (2D View)</button>
+                    <button id="center-sat1">Center on Sat1</button>
+                    <button id="center-sat2">Center on Sat2</button>
+                    <button id="center-earth">Center on Earth</button>
+                    <button id="reset-view">Reset View</button>
+                </div>
+            </div>
+            <button id="pause-btn">Pause</button>
+        </div>
     </div>
     <div id="distance-display">Distance between Sat1 and Sat2: 0 km</div>
     <div id="chart-container">
@@ -349,55 +548,24 @@
         const chartUpdateInterval = 20;
         let frameCount = 0;
 
-        // Update slider and text input displays
+        // Update displays: only sync text inputs (no sliders)
         function updateDisplays() {
-            document.getElementById('alt1-val').textContent = document.getElementById('alt1').value;
-            document.getElementById('incl1-val').textContent = document.getElementById('incl1').value;
-            document.getElementById('ecc1-val').textContent = parseFloat(document.getElementById('ecc1').value).toFixed(2);
-            document.getElementById('alt2-val').textContent = document.getElementById('alt2').value;
-            document.getElementById('incl2-val').textContent = document.getElementById('incl2').value;
-            document.getElementById('ecc2-val').textContent = parseFloat(document.getElementById('ecc2').value).toFixed(2);
-            
-            // Sync text inputs with sliders
-            document.getElementById('alt1-text').value = document.getElementById('alt1').value;
-            document.getElementById('incl1-text').value = document.getElementById('incl1').value;
-            document.getElementById('alt2-text').value = document.getElementById('alt2').value;
-            document.getElementById('incl2-text').value = document.getElementById('incl2').value;
+            // No slider syncing needed
         }
-        updateDisplays();
 
-        // Event listeners for sliders and text inputs
-        ['alt1', 'incl1', 'alt2', 'incl2'].forEach(id => {
-            document.getElementById(id).addEventListener('input', () => {
-                document.getElementById(id + '-text').value = document.getElementById(id).value;
-                updateDisplays();
-            });
-            document.getElementById(id + '-text').addEventListener('change', (e) => {
-                let value = parseFloat(e.target.value);
-                const min = parseFloat(document.getElementById(id).min);
-                const max = parseFloat(document.getElementById(id).max);
-                value = Math.max(min, Math.min(max, value));
-                document.getElementById(id).value = value;
-                updateDisplays();
-            });
-        });
-        ['ecc1', 'ecc2'].forEach(id => {
-            document.getElementById(id).addEventListener('input', updateDisplays);
-        });
-
-        // Earth toggle
-        document.getElementById('earthToggle').addEventListener('change', (e) => {
-            earth.visible = e.target.checked;
+        // Update event listeners for text boxes only
+        ['alt1-text', 'incl1-text', 'ecc1-text', 'alt2-text', 'incl2-text', 'ecc2-text'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateDisplays);
         });
 
         // Apply button to reset satellite states
         document.getElementById('apply').addEventListener('click', () => {
-            const alt1 = parseFloat(document.getElementById('alt1').value);
-            const incl1 = parseFloat(document.getElementById('incl1').value);
-            const ecc1 = parseFloat(document.getElementById('ecc1').value);
-            const alt2 = parseFloat(document.getElementById('alt2').value);
-            const incl2 = parseFloat(document.getElementById('incl2').value);
-            const ecc2 = parseFloat(document.getElementById('ecc2').value);
+            const alt1 = parseFloat(document.getElementById('alt1-text').value);
+            const incl1 = parseFloat(document.getElementById('incl1-text').value);
+            const ecc1 = parseFloat(document.getElementById('ecc1-text').value);
+            const alt2 = parseFloat(document.getElementById('alt2-text').value);
+            const incl2 = parseFloat(document.getElementById('incl2-text').value);
+            const ecc2 = parseFloat(document.getElementById('ecc2-text').value);
             
             satState1 = initSatState(alt1, incl1, ecc1);
             satState2 = initSatState(alt2, incl2, ecc2);
@@ -575,6 +743,53 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Minimize panel logic
+        const controlsPanel = document.getElementById('controls-panel');
+        const controlsDiv = document.getElementById('controls');
+        const minimizeBtn = document.getElementById('minimize-btn');
+        let minimized = false;
+        function updateMinimizeBtn() {
+            minimizeBtn.textContent = minimized ? '☰' : '×';
+            minimizeBtn.title = minimized ? 'Expand Panel' : 'Minimize Panel';
+        }
+        minimizeBtn.addEventListener('click', () => {
+            minimized = !minimized;
+            controlsPanel.classList.toggle('minimized', minimized);
+            controlsDiv.classList.toggle('minimized', minimized);
+            updateMinimizeBtn();
+        });
+        updateMinimizeBtn();
+
+        // Dropdown logic
+        function setupDropdown(toggleId, contentId) {
+            const toggle = document.getElementById(toggleId);
+            const content = document.getElementById(contentId);
+            const parent = toggle.parentElement;
+            toggle.addEventListener('click', () => {
+                parent.classList.toggle('open');
+                // Change arrow direction
+                if (parent.classList.contains('open')) {
+                    toggle.textContent = toggle.textContent.replace('▼', '▲');
+                } else {
+                    toggle.textContent = toggle.textContent.replace('▲', '▼');
+                }
+            });
+        }
+        setupDropdown('sat1-toggle', 'sat1-content');
+        setupDropdown('sat2-toggle', 'sat2-content');
+        setupDropdown('views-toggle', 'views-content');
+
+        // Earth toggle
+        document.getElementById('earthToggle').addEventListener('change', function(e) {
+            earth.visible = e.target.checked;
+        });
+
+        // Sun toggle
+        document.getElementById('sunToggle').addEventListener('change', function(e) {
+            sun.visible = e.target.checked;
+            sunLight.visible = e.target.checked;
         });
     </script>
 </body>
