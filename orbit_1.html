@@ -348,7 +348,7 @@
         scene.add(sunLight);
 
         // Earth as a blue dot
-        var earthGeometry = new THREE.SphereGeometry(5, 32, 32);
+        var earthGeometry = new THREE.SphereGeometry(1, 32, 32); // Radius 1 instead of 5
         var earthMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff, shininess: 10 }); // Blue color
         var earth = new THREE.Mesh(earthGeometry, earthMaterial);
         earth.position.set(50, 0, 0); // Initial position orbiting sun
@@ -651,6 +651,16 @@
             pauseBtn.textContent = paused ? 'Resume' : 'Pause';
         });
 
+        // Function to calculate the maximum number of points for the last 3 orbits
+        function getMaxPoints() {
+            const a1 = R_e + parseFloat(document.getElementById('alt1-text').value);
+            const period1 = 2 * Math.PI * Math.sqrt(a1 ** 3 / GM);
+            const a2 = R_e + parseFloat(document.getElementById('alt2-text').value);
+            const period2 = 2 * Math.PI * Math.sqrt(a2 ** 3 / GM);
+            const maxTimeSpan = 3 * Math.max(period1, period2); // Last 3 orbits
+            return Math.ceil(maxTimeSpan / dt); // Convert time span to points
+        }
+
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
@@ -702,11 +712,15 @@
                 if (frameCount % chartUpdateInterval === 0) {
                     simulatedTime += dt * chartUpdateInterval;
                     chartData.time.push(simulatedTime);
-                    chartData.dist.push(dist);
-                    if (chartData.time.length > maxPoints / chartUpdateInterval) {
+                    chartData.dist.push(satState1.pos.distanceTo(satState2.pos));
+
+                    // Keep only the last 3 orbits of data
+                    maxPoints = getMaxPoints();
+                    while (chartData.time.length > maxPoints) {
                         chartData.time.shift();
                         chartData.dist.shift();
                     }
+
                     distanceChart.data.labels = chartData.time;
                     distanceChart.data.datasets[0].data = chartData.dist;
                     distanceChart.update();
