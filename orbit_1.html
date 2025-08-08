@@ -337,6 +337,13 @@
                     <button id="preset-inc-offset">Inc Offset</button>
                 </div>
             </div>
+            <label>
+                Auto Save CSV:
+                <span class="toggle-switch">
+                    <input type="checkbox" id="auto-csv">
+                    <label for="auto-csv"></label>
+                </span>
+            </label>
             <button id="pause-btn">Pause</button>
         </div>
     </div>
@@ -620,6 +627,11 @@
 
         // Apply button to reset satellite states
         document.getElementById('apply').addEventListener('click', () => {
+            // Generate CSV file (if there is any recorded data)
+            if (document.getElementById('auto-csv').checked) {
+                generateCSVFile();
+            }
+            
             const alt1 = parseFloat(document.getElementById('alt1-text').value);
             const incl1 = parseFloat(document.getElementById('incl1-text').value);
             const ecc1 = parseFloat(document.getElementById('ecc1-text').value);
@@ -745,6 +757,31 @@
                     document.getElementById('poca-display').textContent = `POCA: ${poca.toFixed(2)} km`;
                 }
             }
+        }
+
+        // Function to generate and download a CSV file (with timestamp in the filename) from the simulation data
+        function generateCSVFile() {
+            if(chartData.time.length === 0) return; // No data to export
+            let csvContent = "Time,Distance (km)\n";
+            for (let i = 0; i < chartData.time.length; i++) {
+                csvContent += chartData.time[i] + "," + chartData.dist[i] + "\n";
+            }
+            let now = new Date();
+            let timestamp = now.getFullYear().toString() +
+                            ("0" + (now.getMonth()+1)).slice(-2) +
+                            ("0" + now.getDate()).slice(-2) + "_" +
+                            ("0" + now.getHours()).slice(-2) +
+                            ("0" + now.getMinutes()).slice(-2) +
+                            ("0" + now.getSeconds()).slice(-2);
+            let filename = "distance_" + timestamp + ".csv";
+            let blob = new Blob([csvContent], { type: "text/csv" });
+            let link = document.createElement("a");
+            link.download = filename;
+            link.href = window.URL.createObjectURL(blob);
+            link.style.display = "none";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         // Animation loop
