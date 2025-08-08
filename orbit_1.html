@@ -271,6 +271,14 @@
                         Eccentricity:
                         <input type="text" id="ecc1-text" value="0" size="5">
                     </label>
+                    <label>
+                        RAAN (deg):
+                        <input type="text" id="raan1-text" value="0" size="5">
+                    </label>
+                    <label>
+                        Argument of Perigee (deg):
+                        <input type="text" id="argp1-text" value="0" size="5">
+                    </label>
                 </div>
             </div>
             <div class="dropdown">
@@ -287,6 +295,14 @@
                     <label>
                         Eccentricity:
                         <input type="text" id="ecc2-text" value="0" size="5">
+                    </label>
+                    <label>
+                        RAAN (deg):
+                        <input type="text" id="raan2-text" value="0" size="5">
+                    </label>
+                    <label>
+                        Argument of Perigee (deg):
+                        <input type="text" id="argp2-text" value="0" size="5">
                     </label>
                 </div>
             </div>
@@ -400,23 +416,47 @@
         const R_e = 6378.137; // km
         const earthRadiusViz = 5;
 
-        // Function to initialize satellite state with eccentricity
-        function initSatState(altitude, inclination, eccentricity) {
+        // Function to initialize satellite state with RAAN and Argument of Perigee
+        function initSatState(altitude, inclination, eccentricity, raan, argp) {
             const a_real = R_e + altitude;
-            const v_circular = Math.sqrt(GM / a_real);
             const incl_rad = inclination * Math.PI / 180;
-            // Start at periapsis with eccentricity
+            const raan_rad = raan * Math.PI / 180;
+            const argp_rad = argp * Math.PI / 180;
+
+            // Start at periapsis
             const r_peri = a_real * (1 - eccentricity);
             const v_peri = Math.sqrt(GM * (2 / r_peri - 1 / a_real));
+
+            // Position in perifocal coordinates
+            const pos_perifocal = new THREE.Vector3(r_peri, 0, 0);
+
+            // Velocity in perifocal coordinates
+            const vel_perifocal = new THREE.Vector3(0, v_peri, 0);
+
+            // Rotation matrices for RAAN, inclination, and argument of perigee
+            const rot_raan = new THREE.Matrix4().makeRotationZ(raan_rad);
+            const rot_incl = new THREE.Matrix4().makeRotationX(incl_rad);
+            const rot_argp = new THREE.Matrix4().makeRotationZ(argp_rad);
+
+            // Combined rotation matrix
+            const rotationMatrix = new THREE.Matrix4()
+                .multiply(rot_raan)
+                .multiply(rot_incl)
+                .multiply(rot_argp);
+
+            // Transform position and velocity to ECI frame
+            const pos_eci = pos_perifocal.applyMatrix4(rotationMatrix);
+            const vel_eci = vel_perifocal.applyMatrix4(rotationMatrix);
+
             return {
-                pos: new THREE.Vector3(r_peri, 0, 0),
-                vel: new THREE.Vector3(0, v_peri * Math.cos(incl_rad), v_peri * Math.sin(incl_rad))
+                pos: pos_eci,
+                vel: vel_eci
             };
         }
 
         // Initial states
-        let satState1 = initSatState(500, 60, 0);
-        let satState2 = initSatState(500, 60, 0);
+        let satState1 = initSatState(500, 60, 0, 0, 0);
+        let satState2 = initSatState(500, 60, 0, 0, 0);
 
         // Function to compute acceleration (2-body + J2)
         function getAcceleration(pos) {
@@ -563,12 +603,18 @@
             const alt1 = parseFloat(document.getElementById('alt1-text').value);
             const incl1 = parseFloat(document.getElementById('incl1-text').value);
             const ecc1 = parseFloat(document.getElementById('ecc1-text').value);
+            const raan1 = parseFloat(document.getElementById('raan1-text').value);
+            const argp1 = parseFloat(document.getElementById('argp1-text').value);
+
             const alt2 = parseFloat(document.getElementById('alt2-text').value);
             const incl2 = parseFloat(document.getElementById('incl2-text').value);
             const ecc2 = parseFloat(document.getElementById('ecc2-text').value);
-            
-            satState1 = initSatState(alt1, incl1, ecc1);
-            satState2 = initSatState(alt2, incl2, ecc2);
+            const raan2 = parseFloat(document.getElementById('raan2-text').value);
+            const argp2 = parseFloat(document.getElementById('argp2-text').value);
+
+            satState1 = initSatState(alt1, incl1, ecc1, raan1, argp1);
+            satState2 = initSatState(alt2, incl2, ecc2, raan2, argp2);
+
             // Reset traces and chart when applying changes
             positions1 = [];
             positions2 = [];
@@ -579,12 +625,6 @@
             distanceChart.update();
             simulatedTime = 0;
             frameCount = 0;
-            // Calculate maxPoints for last 3 orbits
-            const a1 = R_e + alt1;
-            const period1 = 2 * Math.PI * Math.sqrt(a1 ** 3 / GM);
-            const a2 = R_e + alt2;
-            const period2 = 2 * Math.PI * Math.sqrt(a2 ** 3 / GM);
-            maxPoints = Math.round(3 * Math.max(period1, period2) / dt);
         });
 
         // Snap to Sat1 plane
