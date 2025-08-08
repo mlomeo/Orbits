@@ -104,6 +104,7 @@
         <button id="center-sat2">Center on Sat2</button>
         <button id="center-earth">Center on Earth</button>
         <button id="reset-view">Reset View</button>
+        <button id="pause-btn">Pause</button>
     </div>
     <div id="distance-display">Distance between Sat1 and Sat2: 0 km</div>
     <div id="chart-container">
@@ -472,75 +473,85 @@
             previousTarget.copy(earth.position);
         });
 
+        // Pause state
+        let paused = false;
+
+        // Pause button logic
+        const pauseBtn = document.getElementById('pause-btn');
+        pauseBtn.addEventListener('click', () => {
+            paused = !paused;
+            pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+        });
+
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
 
-            // Rotate Earth on its axis
-            earth.rotation.y += 0.001;
+            if (!paused) {
+                // Rotate Earth on its axis
+                earth.rotation.y += 0.001;
 
-            // Update Earth position (simple orbit around sun)
-            earthTheta += dEarthTheta;
-            earth.position.x = earthOrbitRadius * Math.cos(earthTheta);
-            earth.position.y = earthOrbitRadius * Math.sin(earthTheta);
-            earth.position.z = 0;
+                // Update Earth position (simple orbit around sun)
+                earthTheta += dEarthTheta;
+                earth.position.x = earthOrbitRadius * Math.cos(earthTheta);
+                earth.position.y = earthOrbitRadius * Math.sin(earthTheta);
+                earth.position.z = 0;
 
-            // Propagate satellite 1 using RK4 with 2-body + J2
-            satState1 = rk4(satState1.pos, satState1.vel, dt);
+                // Propagate satellite 1 using RK4 with 2-body + J2
+                satState1 = rk4(satState1.pos, satState1.vel, dt);
 
-            // Set satellite 1 visual position (relative to Earth, scaled)
-            const scale1 = earthRadiusViz / R_e;
-            const satPosViz1 = satState1.pos.clone().multiplyScalar(scale1);
-            satellite1.position.copy(earth.position.clone().add(satPosViz1));
+                // Set satellite 1 visual position (relative to Earth, scaled)
+                const scale1 = earthRadiusViz / R_e;
+                const satPosViz1 = satState1.pos.clone().multiplyScalar(scale1);
+                satellite1.position.copy(earth.position.clone().add(satPosViz1));
 
-            // Propagate satellite 2 using RK4 with 2-body + J2
-            satState2 = rk4(satState2.pos, satState2.vel, dt);
+                // Propagate satellite 2 using RK4 with 2-body + J2
+                satState2 = rk4(satState2.pos, satState2.vel, dt);
 
-            // Set satellite 2 visual position (relative to Earth, scaled)
-            const scale2 = earthRadiusViz / R_e;
-            const satPosViz2 = satState2.pos.clone().multiplyScalar(scale2);
-            satellite2.position.copy(earth.position.clone().add(satPosViz2));
+                // Set satellite 2 visual position (relative to Earth, scaled)
+                const scale2 = earthRadiusViz / R_e;
+                const satPosViz2 = satState2.pos.clone().multiplyScalar(scale2);
+                satellite2.position.copy(earth.position.clone().add(satPosViz2));
 
-            // Update distance display
-            const dist = satState1.pos.distanceTo(satState2.pos);
-            document.getElementById('distance-display').textContent = `Distance between Sat1 and Sat2: ${dist.toFixed(2)} km`;
+                // Update distance display
+                const dist = satState1.pos.distanceTo(satState2.pos);
+                document.getElementById('distance-display').textContent = `Distance between Sat1 and Sat2: ${dist.toFixed(2)} km`;
 
-            // Update orbit traces (relative to Earth)
-            positions1.push(satPosViz1.clone());
-            if (positions1.length > maxPoints) positions1.shift();
-            traceGeometry1.setFromPoints(positions1);
+                // Update orbit traces (relative to Earth)
+                positions1.push(satPosViz1.clone());
+                if (positions1.length > maxPoints) positions1.shift();
+                traceGeometry1.setFromPoints(positions1);
 
-            positions2.push(satPosViz2.clone());
-            if (positions2.length > maxPoints) positions2.shift();
-            traceGeometry2.setFromPoints(positions2);
+                positions2.push(satPosViz2.clone());
+                if (positions2.length > maxPoints) positions2.shift();
+                traceGeometry2.setFromPoints(positions2);
 
-            // Update traceGroup position
-            traceGroup.position.copy(earth.position);
+                // Update traceGroup position
+                traceGroup.position.copy(earth.position);
 
-            // Update chart less frequently
-            frameCount++;
-            if (frameCount % chartUpdateInterval === 0) {
-                simulatedTime += dt * chartUpdateInterval;
-                chartData.time.push(simulatedTime);
-                chartData.dist.push(dist);
-                if (chartData.time.length > maxPoints / chartUpdateInterval) {
-                    chartData.time.shift();
-                    chartData.dist.shift();
+                // Update chart less frequently
+                frameCount++;
+                if (frameCount % chartUpdateInterval === 0) {
+                    simulatedTime += dt * chartUpdateInterval;
+                    chartData.time.push(simulatedTime);
+                    chartData.dist.push(dist);
+                    if (chartData.time.length > maxPoints / chartUpdateInterval) {
+                        chartData.time.shift();
+                        chartData.dist.shift();
+                    }
+                    distanceChart.data.labels = chartData.time;
+                    distanceChart.data.datasets[0].data = chartData.dist;
+                    distanceChart.update();
                 }
-                distanceChart.data.labels = chartData.time;
-                distanceChart.data.datasets[0].data = chartData.dist;
-                distanceChart.update();
             }
 
-            // Update center dot position
+            // Always update center dot position and grid position
             centerDot.position.copy(earth.position);
-
-            // Update grid position (follow Earth in x-y plane)
             grid.position.x = earth.position.x;
             grid.position.y = earth.position.y;
             grid.position.z = 0;
 
-            // Update controls target and camera follow based on current center
+            // Always update controls target and camera follow based on current center
             let targetPos;
             if (currentCenter === 'sat1') {
                 targetPos = satellite1.position;
